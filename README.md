@@ -180,14 +180,13 @@ docker network rm fluentbit-honeycomb-direct_default 2>/dev/null || true
 ```
 ├── fluent-bit-json.yaml          # JSON log configuration
 ├── fluent-bit-plaintext.yaml     # Plaintext log configuration
-├── fluent-bit-plaintext.yaml.template  # Template with env vars
+├── fluent-bit.yaml               # Base configuration
 ├── docker-compose-json.yml       # JSON setup
 ├── docker-compose-plaintext.yml  # Plaintext setup
 ├── docker-compose-test.yml       # Minimal test setup
 ├── test-minimal.yaml             # Minimal Fluent Bit config
 ├── send-test-logs.sh             # Test script (1 minute intervals)
 ├── send-test-logs-fast.sh        # Test script (10 second intervals)
-├── entrypoint.sh                 # Environment variable substitution
 ├── parsers.conf                  # Log parsers
 ├── .env.example                  # Environment template
 ├── .gitignore                    # Git ignore rules
@@ -215,8 +214,8 @@ docker network rm fluentbit-honeycomb-direct_default 2>/dev/null || true
    - Verify API key and dataset are correct
 
 3. **Environment variables not working**
-   - Use the template approach with entrypoint.sh
-   - Or hardcode values directly in the YAML file
+   - Hardcode values directly in the YAML file (current approach)
+   - Or use external tools like envsubst for variable substitution
 
 ### Debugging workflow:
 1. Start with `docker-compose-test.yml` minimal setup
