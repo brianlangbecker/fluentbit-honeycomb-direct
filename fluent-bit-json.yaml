@@ -15,17 +15,15 @@ pipeline:
       buffer_chunk_size: 1M
       buffer_max_size: 6M
     - name: dummy
-      dummy: 'INFO [2024-01-01 12:00:00] plaintext-service: Sample plaintext log message'
-      tag: plaintext.sample
+      dummy: '{"timestamp": "2024-01-01T12:00:00Z", "level": "info", "service": "json-service", "message": "Sample JSON log entry", "request_id": "12345"}'
+      tag: json.sample
 
   filters:
-    - name: modify
+    - name: parser
       match: "*"
-      add: service plaintext-service
-      add: level info
-    - name: modify
-      match: "*"
-      rename: log message
+      key_name: log
+      parser: json
+      reserve_data: on
 
   outputs:
     - name: stdout
@@ -35,13 +33,13 @@ pipeline:
       match: "*"
       host: api.honeycomb.io
       port: 443
-      uri: /1/events/fluent-bit-plaintext
+      uri: /1/events/fluent-bit-json
       format: json_lines
       tls: on
       json_date_key: date
       json_date_format: iso8601
       header: X-Honeycomb-Team <Your API Key>
-      header: X-Honeycomb-Dataset fluent-bit-plaintext
+      header: X-Honeycomb-Dataset fluent-bit-json
       header: Content-Type application/json
       retry_limit: 3
       log_response_payload: on

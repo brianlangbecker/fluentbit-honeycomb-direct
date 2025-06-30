@@ -1,0 +1,80 @@
+# Local FireLens setup that mirrors ECS logConfiguration format exactly
+version: '3.8'
+
+services:
+  # FireLens container configured like ECS
+  firelens-fluent-bit:
+    image: amazon/aws-for-fluent-bit:stable
+    container_name: firelens-fluent-bit
+    ports:
+      - "24224:24224"
+      - "2020:2020"
+    volumes:
+      - ./firelens-local.conf:/fluent-bit/etc/fluent-bit.conf
+    environment:
+      # These would be auto-populated by ECS
+      - ECS_CLUSTER=local-test-cluster
+      - ECS_SERVICE=local-test-service
+      - ECS_TASK_DEFINITION=local-test-task:1
+      - ECS_TASK_ARN=arn:aws:ecs:us-east-1:123456789012:task/local-test-task
+      - CONTAINER_NAME=app-container
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.conf"]
+    restart: unless-stopped
+
+  # App container with EXACT same logConfiguration as ECS task definition
+  app-container:
+    image: nginx:latest
+    container_name: app-container
+    ports:
+      - "8080:80"
+    # This exactly mirrors the ECS task definition logConfiguration
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: ecs.app-container
+        # These options mirror the ECS awsfirelens driver options:
+        Name: "http"
+        Match: "*"
+        host: "api.honeycomb.io"
+        port: "443"
+        uri: "/1/events/YOUR_DATASET_NAME"
+        format: "json"
+        tls: "on"
+        json_date_key: "date"
+        json_date_format: "iso8601"
+        headers: '{"X-Honeycomb-Team":"YOUR_API_KEY","Content-Type":"application/json"}'
+    depends_on:
+      - firelens-fluent-bit
+    restart: unless-stopped
+
+  # Second app container showing how multiple containers work
+  worker-container:
+    image: alpine:latest
+    container_name: worker-container
+    # Same logConfiguration format as ECS
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: ecs.worker-container
+        Name: "http"
+        Match: "*"
+        host: "api.honeycomb.io"
+        port: "443"
+        uri: "/1/events/YOUR_DATASET_NAME"
+        format: "json"
+        tls: "on"
+        json_date_key: "date"
+        json_date_format: "iso8601"
+        headers: '{"X-Honeycomb-Team":"YOUR_API_KEY","Content-Type":"application/json"}'
+    command: >
+      sh -c "
+        while true; do
+          echo '{\"timestamp\":\"'$$(date -Iseconds)'\",\"level\":\"info\",\"service\":\"worker\",\"message\":\"Background job completed\",\"job_id\":\"'$$(shuf -i 1000-9999 -n1)'\"}';
+          sleep 45;
+        done
+      "
+    depends_on:
+      - firelens-fluent-bit
+    restart: unless-stopped

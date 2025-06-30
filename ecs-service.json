@@ -1,0 +1,26 @@
+{
+  "serviceName": "honeycomb-firelens-service",
+  "cluster": "your-cluster-name",
+  "taskDefinition": "honeycomb-firelens-task",
+  "desiredCount": 1,
+  "launchType": "FARGATE",
+  "networkConfiguration": {
+    "awsvpcConfiguration": {
+      "subnets": [
+        "subnet-12345678",
+        "subnet-87654321"
+      ],
+      "securityGroups": [
+        "sg-12345678"
+      ],
+      "assignPublicIp": "ENABLED"
+    }
+  },
+  "loadBalancers": [
+    {
+      "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:ACCOUNT_ID:targetgroup/my-target-group/1234567890123456",
+      "containerName": "app-container",
+      "containerPort": 80
+    }
+  ]
+}

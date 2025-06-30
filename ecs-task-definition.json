@@ -1,0 +1,65 @@
+{
+  "family": "honeycomb-firelens-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "firelens-fluent-bit",
+      "image": "amazon/aws-for-fluent-bit:stable",
+      "essential": true,
+      "firelensConfiguration": {
+        "type": "fluentbit",
+        "options": {
+          "enable-ecs-log-metadata": "true",
+          "config-file-type": "file",
+          "config-file-value": "/fluent-bit/etc/fluent-bit.conf"
+        }
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/firelens-fluent-bit",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "firelens"
+        }
+      },
+      "memoryReservation": 50
+    },
+    {
+      "name": "app-container",
+      "image": "nginx:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awsfirelens",
+        "options": {
+          "Name": "http",
+          "Match": "*",
+          "host": "api.honeycomb.io",
+          "port": "443",
+          "uri": "/1/events/YOUR_DATASET_NAME",
+          "format": "json",
+          "tls": "on",
+          "json_date_key": "date",
+          "json_date_format": "iso8601",
+          "headers": "{\"X-Honeycomb-Team\":\"YOUR_API_KEY\",\"Content-Type\":\"application/json\"}"
+        }
+      },
+      "environment": [
+        {
+          "name": "ENV",
+          "value": "production"
+        }
+      ]
+    }
+  ]
+}

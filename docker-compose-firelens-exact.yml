@@ -1,0 +1,59 @@
+# Local setup that EXACTLY mirrors ECS FireLens logConfiguration
+version: '3.8'
+
+services:
+  # FireLens container - exactly like ECS
+  firelens-fluent-bit:
+    image: amazon/aws-for-fluent-bit:stable
+    container_name: firelens-fluent-bit
+    ports:
+      - "24224:24224"
+      - "2020:2020"
+    volumes:
+      - ./firelens-local-configured.conf:/fluent-bit/etc/fluent-bit.conf
+    environment:
+      # Simulated ECS metadata
+      - ECS_CLUSTER=local-test-cluster
+      - ECS_SERVICE=local-test-service  
+      - ECS_TASK_DEFINITION=local-test-task:1
+      - ECS_TASK_ARN=arn:aws:ecs:us-east-1:123456789012:task/local-test-task
+      - CONTAINER_NAME=app-container
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.conf"]
+    restart: unless-stopped
+
+  # App container - using simple fluentd driver (Docker doesn't support awsfirelens driver)
+  app-container:
+    image: nginx:latest
+    container_name: app-container
+    ports:
+      - "8080:80"
+    # Note: Docker doesn't support awsfirelens driver, so we use fluentd
+    # But the Fluent Bit config above mirrors the exact ECS logConfiguration
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: host.docker.internal:24224
+        tag: firelens-logs
+    depends_on:
+      - firelens-fluent-bit
+    restart: unless-stopped
+
+  # Log generator that shows the data flow
+  log-generator:
+    image: alpine:latest
+    container_name: log-generator
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: host.docker.internal:24224
+        tag: firelens-logs
+    command: >
+      sh -c "
+        while true; do
+          echo '{\"timestamp\":\"'$$(date -Iseconds)'\",\"level\":\"info\",\"service\":\"test-app\",\"message\":\"This log uses EXACT ECS FireLens configuration\",\"container_name\":\"log-generator\"}';
+          sleep 30;
+        done
+      "
+    depends_on:
+      - firelens-fluent-bit
+    restart: unless-stopped

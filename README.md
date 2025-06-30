@@ -2,24 +2,6 @@
 
 This project demonstrates how to send logs directly from Fluent Bit to Honeycomb using the HTTP output plugin, similar to AWS FireLens configuration. Two configurations are provided for different log formats.
 
-## Prerequisites
-
-- Docker and Docker Compose
-- Honeycomb API key and dataset name
-
-## Setup
-
-1. Copy the environment file and configure your credentials:
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Edit `.env` and add your Honeycomb credentials:
-   ```
-   HONEYCOMB_API_KEY=your_actual_api_key
-   HONEYCOMB_DATASET=your_actual_dataset_name
-   ```
-
 ## Configuration Options
 
 ### Option 1: JSON Logs (Structured)
@@ -66,24 +48,14 @@ docker-compose -f docker-compose-plaintext.yml up -d
 INFO [2024-01-01 12:00:00] api-service: User login successful
 ```
 
-## Configuration Details
+## Key Features
 
-Both setups include:
 - **TLS enabled** for secure transmission to Honeycomb
-- **ISO8601 timestamp format** with `_timestamp` field
-- **Automatic headers** for Honeycomb Team API key
-- **JSON formatting** for structured output to Honeycomb
-- **Buffer management** for reliable log delivery
-
-### JSON Configuration (`fluent-bit-json.yaml`)
-- Uses JSON parser for structured log parsing
-- Preserves all original fields
-- Optimized for modern applications
-
-### Plaintext Configuration (`fluent-bit-plaintext.yaml`)
-- Converts unstructured logs to JSON
-- Adds service metadata
-- Uses modify and nest filters for field management
+- **ISO8601 timestamp format** with proper date handling
+- **Hardcoded API keys** for reliable authentication
+- **JSON lines format** for individual event sending
+- **Debugging output** via stdout
+- **Retry logic** with error logging
 
 ## Monitoring
 
@@ -139,9 +111,8 @@ docker logs -f fluent-bit-test
 ```
 
 ### Verify data in Honeycomb:
-- Log into your Honeycomb account
-- Navigate to your dataset
-- Look for events with fields like `_timestamp`, `service`, `level`, and `message`
+- Check your Honeycomb dataset for incoming events
+- Look for fields like `date`, `service`, `level`, and `message`
 
 ## Cleanup
 
@@ -193,11 +164,11 @@ docker network rm fluentbit-honeycomb-direct_default 2>/dev/null || true
 └── README.md                     # This file
 ```
 
-## Which Setup Should I Use?
+## Quick Start
 
-- **JSON Setup**: Use if your applications already emit structured JSON logs
-- **Plaintext Setup**: Use for legacy applications or simple text-based logging
-- **Test Setup**: Use for debugging Fluent Bit Forward input issues
+- **JSON Setup**: `docker-compose -f docker-compose-json.yml up -d`
+- **Plaintext Setup**: `docker-compose -f docker-compose-plaintext.yml up -d`
+- **Test Setup**: `docker-compose -f docker-compose-test.yml up -d`
 
 ## Troubleshooting
 
@@ -213,9 +184,9 @@ docker network rm fluentbit-honeycomb-direct_default 2>/dev/null || true
    - Check for 400/401 errors in Fluent Bit logs
    - Verify API key and dataset are correct
 
-3. **Environment variables not working**
-   - Hardcode values directly in the YAML file (current approach)
-   - Or use external tools like envsubst for variable substitution
+3. **Authentication errors (401/403)**
+   - Verify API key is correct in the YAML files
+   - Check dataset name matches your Honeycomb setup
 
 ### Debugging workflow:
 1. Start with `docker-compose-test.yml` minimal setup

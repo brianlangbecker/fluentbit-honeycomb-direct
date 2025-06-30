@@ -1,0 +1,56 @@
+# ECS-like setup for local testing
+version: '3.8'
+
+services:
+  # FireLens Fluent Bit container (simulates ECS FireLens)
+  firelens-fluent-bit:
+    image: amazon/aws-for-fluent-bit:stable
+    container_name: firelens-fluent-bit
+    ports:
+      - "24224:24224"
+      - "2020:2020"
+    volumes:
+      - ./firelens-fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    environment:
+      - HONEYCOMB_API_KEY=${HONEYCOMB_API_KEY}
+      - HONEYCOMB_DATASET=${HONEYCOMB_DATASET}
+      - ECS_SERVICE_NAME=local-test-service
+      - ECS_CLUSTER_NAME=local-test-cluster
+      - ECS_TASK_ARN=arn:aws:ecs:us-east-1:123456789012:task/local-test-task
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.conf"]
+    restart: unless-stopped
+
+  # Application container with FireLens logging
+  app-container:
+    image: nginx:latest
+    container_name: app-container
+    ports:
+      - "8080:80"
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: ecs.app-container
+    depends_on:
+      - firelens-fluent-bit
+    restart: unless-stopped
+
+  # Log generator that simulates ECS metadata
+  ecs-log-generator:
+    image: alpine:latest
+    container_name: ecs-log-generator
+    logging:
+      driver: fluentd
+      options:
+        fluentd-address: localhost:24224
+        tag: ecs.log-generator
+    command: >
+      sh -c "
+        while true; do
+          echo '{\"timestamp\":\"'$$(date -Iseconds)'\",\"level\":\"info\",\"service\":\"ecs-app\",\"message\":\"ECS FireLens test message\",\"container_name\":\"app-container\",\"ecs_cluster\":\"my-cluster\",\"ecs_task_arn\":\"arn:aws:ecs:us-east-1:123456789012:task/my-task\"}';
+          sleep 30;
+        done
+      "
+    depends_on:
+      - firelens-fluent-bit
+    restart: unless-stopped

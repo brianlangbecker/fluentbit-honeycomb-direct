@@ -1,0 +1,40 @@
+# Simplified local FireLens setup without Docker logging driver complications
+version: '3.8'
+
+services:
+  # FireLens container with exact ECS configuration
+  firelens-fluent-bit:
+    image: amazon/aws-for-fluent-bit:stable
+    container_name: firelens-fluent-bit
+    ports:
+      - "24224:24224"
+      - "9880:9880"
+      - "2020:2020"
+    volumes:
+      - ./firelens-local-configured.conf:/fluent-bit/etc/fluent-bit.conf
+    environment:
+      # Simulated ECS metadata
+      - ECS_CLUSTER=local-test-cluster
+      - ECS_SERVICE=local-test-service  
+      - ECS_TASK_DEFINITION=local-test-task:1
+      - ECS_TASK_ARN=arn:aws:ecs:us-east-1:123456789012:task/local-test-task
+      - CONTAINER_NAME=app-container
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.conf"]
+    restart: unless-stopped
+
+  # Simple log generator that sends to HTTP input
+  log-generator:
+    image: alpine:latest
+    container_name: log-generator
+    command: >
+      sh -c "
+        apk add --no-cache curl &&
+        while true; do
+          echo '{\"timestamp\":\"'$$(date -Iseconds)'\",\"level\":\"info\",\"service\":\"test-app\",\"message\":\"FireLens test log from HTTP input\",\"container_name\":\"log-generator\"}' |
+          curl -X POST -H 'Content-Type: application/json' -d @- http://firelens-fluent-bit:9880/test || true;
+          sleep 30;
+        done
+      "
+    depends_on:
+      - firelens-fluent-bit
+    restart: unless-stopped
