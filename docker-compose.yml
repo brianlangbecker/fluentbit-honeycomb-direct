@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  fluent-bit:
+    image: fluent/fluent-bit:3.0
+    container_name: fluent-bit-honeycomb
+    ports:
+      - "24224:24224"
+      - "2020:2020"
+    volumes:
+      - ./fluent-bit.yaml:/fluent-bit/etc/fluent-bit.yaml
+      - ./parsers.conf:/fluent-bit/etc/parsers.conf
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.yaml"]
+    environment:
+      - HONEYCOMB_API_KEY=${HONEYCOMB_API_KEY}
+      - HONEYCOMB_DATASET=${HONEYCOMB_DATASET}
+    restart: unless-stopped
+
+  # Sample app that generates logs
+  log-generator:
+    image: alpine:latest
+    container_name: log-generator
+    command: >
+      sh -c "
+        apk add --no-cache curl &&
+        while true; do
+          echo '{\"timestamp\":\"'$$(date -Iseconds)'\",\"level\":\"info\",\"service\":\"log-generator\",\"message\":\"Sample log message from container\",\"request_id\":\"'$$(cat /proc/sys/kernel/random/uuid)'\"}' |
+          curl -X POST -H 'Content-Type: application/json' -d @- http://fluent-bit:24224/sample || true;
+          sleep 10;
+        done
+      "
+    depends_on:
+      - fluent-bit
+    restart: unless-stopped

@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  fluent-bit-test:
+    image: fluent/fluent-bit:3.0
+    container_name: fluent-bit-test
+    ports:
+      - "24224:24224"
+    volumes:
+      - ./test-minimal.yaml:/fluent-bit/etc/fluent-bit.yaml
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.yaml"]

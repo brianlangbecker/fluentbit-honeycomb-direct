@@ -1,0 +1,14 @@
+service:
+  flush: 5
+  daemon: off
+  log_level: debug
+
+pipeline:
+  inputs:
+    - name: forward
+      listen: 0.0.0.0
+      port: 24224
+
+  outputs:
+    - name: stdout
+      match: "*"

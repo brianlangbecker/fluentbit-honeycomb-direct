@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  fluent-bit:
+    image: fluent/fluent-bit:3.0
+    container_name: fluent-bit-honeycomb-plaintext
+    ports:
+      - "24224:24224"
+      - "2020:2020"
+    volumes:
+      - ./fluent-bit-plaintext.yaml:/fluent-bit/etc/fluent-bit.yaml
+      - ./parsers.conf:/fluent-bit/etc/parsers.conf
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.yaml"]
+    environment:
+      - HONEYCOMB_API_KEY=${HONEYCOMB_API_KEY}
+      - HONEYCOMB_DATASET=${HONEYCOMB_DATASET}
+    restart: unless-stopped
+
