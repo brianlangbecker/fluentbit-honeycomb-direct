@@ -91,7 +91,7 @@ Fluent Bit exposes metrics on http://localhost:2020
 
 ## Testing
 
-Both setups include dummy log generators that automatically send sample logs to Honeycomb. You can verify they're working by:
+Both setups include dummy inputs that automatically generate sample logs to verify the pipeline is working. You can verify they're working by:
 
 ### Check Fluent Bit logs:
 ```bash
@@ -223,5 +223,51 @@ docker network rm fluentbit-honeycomb-direct_default 2>/dev/null || true
 2. Use `send-test-logs-fast.sh` for rapid testing
 3. Check `docker logs -f fluent-bit-test` for detailed output
 4. Once working, switch to full plaintext or JSON setup
+
+## Dummy Input Configuration
+
+The configurations include a **dummy input** that automatically generates test messages every ~5 seconds:
+
+```yaml
+inputs:
+  - name: dummy
+    dummy: 'INFO [2024-01-01 12:00:00] plaintext-service: Sample plaintext log message'
+    tag: plaintext.sample
+```
+
+**What you'll see in Honeycomb:**
+```
+date: 2025-06-30T18:27:29.353504Z
+level: info
+message: dummy
+service: plaintext-service
+```
+
+### Controlling the Dummy Input:
+
+**Stop dummy messages** (use only real logs):
+```yaml
+# Comment out or remove the dummy input
+# - name: dummy
+#   dummy: 'Sample message'
+#   tag: plaintext.sample
+```
+
+**Change frequency** (default is ~5 seconds):
+```yaml
+- name: dummy
+  dummy: 'Sample message'
+  tag: plaintext.sample
+  interval_sec: 60  # Send every 60 seconds
+```
+
+**Custom message content:**
+```yaml
+- name: dummy
+  dummy: '{"level":"info","service":"my-app","message":"Custom test message"}'
+  tag: test.custom
+```
+
+> **Note:** The dummy input is useful for verifying your pipeline works. If you see these messages in Honeycomb, your configuration is working correctly! 🎉
 
 Both configurations send data to Honeycomb in the same format, but handle input parsing differently.

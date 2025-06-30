@@ -35,7 +35,7 @@ Thumbs.db
 *.bak
 *.backup
 
-# Runtime generated config files
-fluent-bit.yaml
-fluent-bit-*.yaml
+# Runtime generated config files (but keep the actual config files)
+# fluent-bit.yaml  # commented out to keep config files
+# fluent-bit-*.yaml  # commented out to keep config files
 !fluent-bit-*.yaml.template

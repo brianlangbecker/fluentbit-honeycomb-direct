@@ -1,0 +1,38 @@
+service:
+  flush: 5
+  daemon: off
+  log_level: info
+  parsers_file: parsers.conf
+  http_server: on
+  http_listen: 0.0.0.0
+  http_port: 2020
+
+pipeline:
+  inputs:
+    - name: forward
+      listen: 0.0.0.0
+      port: 24224
+      buffer_chunk_size: 1M
+      buffer_max_size: 6M
+    - name: dummy
+      dummy: '{"message": "sample log entry", "service": "test-service", "level": "info"}'
+      tag: sample
+
+  filters:
+    - name: modify
+      match: "*"
+      add: _timestamp %{time}
+
+  outputs:
+    - name: http
+      match: "*"
+      host: api.honeycomb.io
+      port: 443
+      uri: /1/batch/%{HONEYCOMB_DATASET}
+      format: json
+      tls: on
+      tls.verify: on
+      json_date_key: _timestamp
+      json_date_format: iso8601
+      header: X-Honeycomb-Team %{HONEYCOMB_API_KEY}
+      header: Content-Type application/json
