@@ -10,7 +10,7 @@ DATASET=$2
 
 if [ -z "$API_KEY" ] || [ -z "$DATASET" ]; then
     echo "Usage: $0 <api_key> <dataset_name>"
-    echo "Example: $0 hcaik_01xyz... my-dataset"
+    echo "Example: $0 <your-api-key> my-dataset"
     exit 1
 fi
 

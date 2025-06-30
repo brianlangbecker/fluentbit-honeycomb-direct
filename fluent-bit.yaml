@@ -35,4 +35,3 @@ pipeline:
       json_date_key: _timestamp
       json_date_format: iso8601
       header: X-Honeycomb-Team %{HONEYCOMB_API_KEY}
-      header: Content-Type application/json

@@ -52,6 +52,8 @@ curl http://localhost:2020/api/v1/metrics/prometheus
 
 ### 2. AWS Deployment
 
+**⚠️ Note:** AWS deployment configurations have not been fully tested. The local testing setup has been verified to work with Honeycomb's API.
+
 #### Option A: Using AWS CLI
 
 ```bash
@@ -77,6 +79,8 @@ terraform apply
 ### ECS Task Definition
 
 The task definition includes two containers:
+
+**Important Note on Headers:** For reliability, use minimal headers in the ECS logConfiguration. The dataset name should be specified in the URI path, and Content-Type is automatically set by Fluent Bit.
 
 **FireLens Container:**
 ```json
@@ -148,13 +152,13 @@ The FireLens container uses this Fluent Bit configuration that **exactly mirrors
     json_date_key date
     json_date_format iso8601
     header X-Honeycomb-Team ${HONEYCOMB_API_KEY}
-    header X-Honeycomb-Dataset ${HONEYCOMB_DATASET}
-    header Content-Type application/json
 ```
 
 **Key Points:**
 - Lowercase field names (`host`, `port`, `uri`) match ECS `logConfiguration` exactly
-- Headers use proper JSON escaping: `{\"X-Honeycomb-Team\":\"key\"}`
+- Dataset specified in URI path: `/1/events/${HONEYCOMB_DATASET}`
+- Minimal headers approach: only `X-Honeycomb-Team` needed
+- Content-Type automatically set by Fluent Bit
 - Same format works in both local testing and ECS deployment
 
 ## Environment Variables
@@ -163,7 +167,7 @@ Set these environment variables for the FireLens container:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `HONEYCOMB_API_KEY` | Your Honeycomb API key | `hcaik_01...` |
+| `HONEYCOMB_API_KEY` | Your Honeycomb API key | `<Your API Key>` |
 | `HONEYCOMB_DATASET` | Target dataset name | `ecs-logs` |
 | `ECS_SERVICE_NAME` | Auto-populated by ECS | `my-service` |
 | `ECS_CLUSTER_NAME` | Auto-populated by ECS | `my-cluster` |
@@ -236,6 +240,58 @@ FireLens container logs go to: `/ecs/firelens-fluent-bit`
 
 ### Honeycomb
 Check your dataset for incoming events with ECS metadata.
+
+## Header Configuration Best Practices
+
+### Minimal Headers Approach (Recommended)
+
+For maximum reliability in ECS FireLens, use minimal headers:
+
+```json
+{
+  "logConfiguration": {
+    "logDriver": "awsfirelens",
+    "options": {
+      "Name": "http",
+      "host": "api.honeycomb.io",
+      "port": "443",
+      "uri": "/1/events/YOUR_DATASET_NAME",
+      "format": "json",
+      "tls": "on", 
+      "headers": "{\"X-Honeycomb-Team\":\"YOUR_API_KEY\"}"
+    }
+  }
+}
+```
+
+**Why this works:**
+- **Dataset in URI**: `/1/events/YOUR_DATASET_NAME` eliminates need for `X-Honeycomb-Dataset` header
+- **Auto Content-Type**: Fluent Bit automatically sets `Content-Type: application/json` when using `format: json`
+- **Fewer escaping issues**: Single header reduces JSON escaping complexity
+- **ECS compatibility**: Simpler header structure works across all ECS FireLens versions
+
+### Multiple Headers (If Needed)
+
+If you need multiple headers, ensure proper JSON escaping:
+
+```json
+"headers": "{\"X-Honeycomb-Team\":\"YOUR_API_KEY\",\"X-Custom-Header\":\"value\"}"
+```
+
+**Common issues with multiple headers:**
+- JSON escaping errors (missing `\"`)
+- ECS FireLens version compatibility
+- Complex parsing in older AWS images
+
+### Events Endpoint (Recommended)
+
+**Use Events Endpoint Only:**
+- URI: `/1/events/DATASET_NAME`
+- Format: `json_lines` (individual JSON objects)
+- Works reliably with Fluent Bit
+- One HTTP request per log event
+
+**Note:** The batch endpoint (`/1/batch/`) does not work reliably with Fluent Bit due to JSON array formatting requirements. Fluent Bit cannot natively create the JSON array structure that Honeycomb's batch API expects.
 
 ## Troubleshooting
 

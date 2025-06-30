@@ -8,6 +8,8 @@ This project demonstrates how to send logs directly from Fluent Bit to Honeycomb
 
 For applications that already emit structured JSON logs:
 
+**⚠️ Setup Required:** Edit `fluent-bit-json.yaml` and replace `<Your API Key>` with your actual Honeycomb API key.
+
 ```bash
 docker-compose -f docker-compose-json.yml up -d
 ```
@@ -33,6 +35,8 @@ docker-compose -f docker-compose-json.yml up -d
 ### Option 2: Plaintext Logs (Unstructured)
 
 For legacy applications or simple text-based logs:
+
+**⚠️ Setup Required:** Edit `fluent-bit-plaintext.yaml` and replace `<Your API Key>` with your actual Honeycomb API key.
 
 ```bash
 docker-compose -f docker-compose-plaintext.yml up -d
@@ -159,7 +163,6 @@ docker network rm fluentbit-honeycomb-direct_default 2>/dev/null || true
 ├── send-test-logs.sh             # Test script (1 minute intervals)
 ├── send-test-logs-fast.sh        # Test script (10 second intervals)
 ├── parsers.conf                  # Log parsers
-├── .env.example                  # Environment template
 ├── .gitignore                    # Git ignore rules
 └── README.md                     # This file
 ```

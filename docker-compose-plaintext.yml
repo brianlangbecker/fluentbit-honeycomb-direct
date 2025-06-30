@@ -11,8 +11,5 @@ services:
       - ./fluent-bit-plaintext.yaml:/fluent-bit/etc/fluent-bit.yaml
       - ./parsers.conf:/fluent-bit/etc/parsers.conf
     command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.yaml"]
-    environment:
-      - HONEYCOMB_API_KEY=${HONEYCOMB_API_KEY}
-      - HONEYCOMB_DATASET=${HONEYCOMB_DATASET}
     restart: unless-stopped
 
