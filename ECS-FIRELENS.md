@@ -1,40 +1,53 @@
 # ECS FireLens to Honeycomb Integration
 
-This guide shows how to send logs from ECS containers directly to Honeycomb using AWS FireLens (Fluent Bit) integration.
+This guide provides comprehensive ECS FireLens configurations for sending logs directly to Honeycomb using both modern OpenTelemetry and traditional HTTP approaches. Includes local testing setups that mirror AWS ECS FireLens deployments exactly.
 
-## Overview
+## Configuration Options
 
-AWS FireLens allows you to route container logs to various destinations using Fluent Bit. This setup sends logs directly to Honeycomb's API without requiring intermediate infrastructure.
+Choose between **OpenTelemetry** (recommended) or **HTTP endpoint** approaches for ECS FireLens:
 
-## Architecture
+### OpenTelemetry Approach (Recommended)
 
-```
-ECS Container → FireLens (Fluent Bit) → Honeycomb API
-```
+Uses Honeycomb's OpenTelemetry API (`/v1/logs`) with native OTel output plugin.
 
-**Components:**
-- **FireLens Container**: `amazon/aws-for-fluent-bit:stable`
-- **Application Container**: Your app with `awsfirelens` log driver
-- **Honeycomb Endpoint**: `api.honeycomb.io/1/events/{dataset}`
+#### Local Testing - OpenTelemetry FireLens
 
-## Prerequisites
-
-- AWS ECS cluster (Fargate or EC2)
-- Honeycomb API key and dataset
-- VPC with internet access or NAT gateway
-- IAM roles with appropriate permissions
-
-## Quick Start
-
-### 1. Local Testing (Recommended)
-
-Test the setup locally with **exact ECS FireLens configuration** before deploying to AWS:
+**⚠️ Setup Required:** Replace placeholders with your actual Honeycomb API key and dataset name.
 
 ```bash
-# Configure local setup with your credentials (mirrors ECS exactly)
+# Configure local OpenTelemetry FireLens setup
+./configure-local-firelens-otel.sh your_api_key_here your_dataset_name
+
+# Start the local OpenTelemetry FireLens environment
+docker-compose -f docker-compose-firelens-otel-configured.yml up -d
+
+# Check logs
+docker logs fluent-bit-otel-firelens
+
+# View metrics
+curl http://localhost:2023/api/v1/metrics/prometheus
+```
+
+**Features:**
+- Native OpenTelemetry support with `/v1/logs` endpoint
+- Full OTel resource attributes and instrumentation scope
+- Trace context integration (trace_id, span_id)
+- ECS metadata simulation
+- Future-proof observability standard
+
+### HTTP Endpoint Approach
+
+Uses Honeycomb's events API (`/1/events/`) with HTTP output plugin.
+
+#### Local Testing - HTTP FireLens
+
+**⚠️ Setup Required:** Replace placeholders with your actual Honeycomb API key and dataset name.
+
+```bash
+# Configure local HTTP FireLens setup (mirrors ECS exactly)
 ./configure-local-firelens.sh your_api_key_here your_dataset_name
 
-# Start the local FireLens environment (identical to ECS)
+# Start the local HTTP FireLens environment (identical to ECS)
 docker-compose -f docker-compose-firelens-configured.yml up -d
 
 # Check logs
@@ -44,13 +57,116 @@ docker logs firelens-fluent-bit
 curl http://localhost:2020/api/v1/metrics/prometheus
 ```
 
-**Why this approach?**
+**Features:**
+- Simple HTTP integration with `/1/events/` endpoint
+- OpenTelemetry field conventions (body, severity, service.name)
+- ECS metadata simulation
+- Minimal headers approach for reliability
+
+### Sample Log Formats
+
+**OpenTelemetry Output (Recommended):**
+
+```json
+{
+  "timestamp": "2024-01-01T12:00:00.000Z",
+  "body": "INFO [2024-01-01 12:00:00] firelens-service: Sample log message",
+  "severity_text": "INFO",
+  "severity_number": 9,
+  "resource": {
+    "service.name": "otel-firelens-service",
+    "service.version": "1.0.0",
+    "deployment.environment": "production",
+    "cloud.region": "us-east-1",
+    "k8s.cluster.name": "my-cluster"
+  },
+  "instrumentation_scope": {
+    "name": "fluent-bit-firelens",
+    "version": "3.0.0"
+  },
+  "trace_id": "firelens567890abcdef1234567890abcdef",
+  "span_id": "firelens7890abcdef",
+  "ecs_cluster": "my-cluster",
+  "ecs_task_arn": "arn:aws:ecs:us-east-1:123456789012:task/abc123",
+  "container_name": "app-container"
+}
+```
+
+**HTTP Output:**
+
+```json
+{
+  "date": "2024-01-01T12:00:00.000Z",
+  "body": "INFO [2024-01-01 12:00:00] firelens-service: Sample log message",
+  "severity": "info",
+  "service.name": "firelens-service",
+  "environment": "production",
+  "version": "1.0.0",
+  "team": "platform",
+  "region": "us-east-1",
+  "meta.signal.type": "log",
+  "ecs_cluster": "my-cluster",
+  "ecs_task_arn": "arn:aws:ecs:us-east-1:123456789012:task/abc123",
+  "container_name": "app-container"
+}
+```
+
+## Key Features
+
+### OpenTelemetry Approach (Recommended)
+
+- **Native OTel support** with `/v1/logs` endpoint
+- **Rich resource attributes** (service.name, deployment.environment, cloud.region)
+- **Instrumentation scope** metadata (name, version)
+- **Trace context integration** (trace_id, span_id, trace_flags)
+- **ECS metadata** automatically included
+- **Standardized severity** (both text and numeric values)
+- **Future-proof observability** standards compliance
+- **TLS encryption** for secure transmission
+
+### HTTP Endpoint Approach
+
+- **Simple HTTP integration** with `/1/events/` endpoint
+- **OpenTelemetry field conventions** (body, severity, service.name)
+- **Custom metadata fields** (environment, version, team, region)
+- **ECS metadata** automatically included
+- **Signal type classification** (meta.signal.type)
+- **Minimal headers approach** for maximum reliability
+- **TLS encryption** for secure transmission
+- **Debugging output** via stdout
+
+### Why Local Testing First?
+
 - Uses **identical Fluent Bit configuration** as ECS FireLens
 - Same `logConfiguration` options format
-- Same headers format with proper escaping
 - Perfect for testing before AWS deployment
+- Verifies API connectivity and log format
 
-### 2. AWS Deployment
+## Monitoring
+
+Fluent Bit exposes metrics on different ports depending on the setup:
+
+### OpenTelemetry FireLens
+- **Local Testing**: http://localhost:2023/api/v1/metrics/prometheus
+- **ECS Deployment**: `http://task-ip:2020/api/v1/metrics/prometheus`
+
+### HTTP FireLens
+- **Local Testing**: http://localhost:2020/api/v1/metrics/prometheus
+- **ECS Deployment**: `http://task-ip:2020/api/v1/metrics/prometheus`
+
+## Quick Start
+
+### OpenTelemetry (Recommended)
+- **FireLens OTel Setup**: `./configure-local-firelens-otel.sh your_key your_dataset && docker-compose -f docker-compose-firelens-otel-configured.yml up -d`
+
+### HTTP Endpoint
+- **FireLens HTTP Setup**: `./configure-local-firelens.sh your_key your_dataset && docker-compose -f docker-compose-firelens-configured.yml up -d`
+
+### Port Assignments
+- **OTel FireLens**: 2023 (metrics), 24227 (forward input), 9881 (HTTP input)
+- **HTTP FireLens**: 2020 (metrics), 24224 (forward input), 9880 (HTTP input)
+
+## AWS Deployment
 
 **⚠️ Note:** AWS deployment configurations have not been fully tested. The local testing setup has been verified to work with Honeycomb's API.
 

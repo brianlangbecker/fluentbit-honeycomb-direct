@@ -24,6 +24,18 @@ pipeline:
       key_name: log
       parser: json
       reserve_data: on
+    - name: modify
+      match: "*"
+      add: service.name json-service
+      add: environment production
+      add: version 1.0.0
+      add: team backend
+      add: region us-east-1
+      add: meta.signal.type log
+    - name: modify
+      match: "*"
+      rename: message body
+      rename: level severity
 
   outputs:
     - name: stdout

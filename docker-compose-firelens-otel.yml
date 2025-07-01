@@ -1,0 +1,39 @@
+# OpenTelemetry-native FireLens log configuration
+version: '3.8'
+
+services:
+  fluent-bit-otel-firelens:
+    image: fluent/fluent-bit:3.0
+    container_name: fluent-bit-otel-firelens
+    ports:
+      - "24227:24227"  # Forward input port
+      - "9881:9881"    # HTTP input port
+      - "2023:2023"    # Metrics port
+    volumes:
+      - ./firelens-local-otel-configured.conf:/fluent-bit/etc/fluent-bit.conf
+    environment:
+      # Simulated ECS metadata
+      - ECS_CLUSTER=local-otel-cluster
+      - ECS_SERVICE=local-otel-service  
+      - ECS_TASK_DEFINITION=local-otel-task:1
+      - ECS_TASK_ARN=arn:aws:ecs:us-east-1:123456789012:task/local-otel-task
+      - CONTAINER_NAME=otel-app-container
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.conf"]
+    restart: unless-stopped
+
+  # Simple log generator that sends to HTTP input
+  otel-log-generator:
+    image: alpine:latest
+    container_name: otel-log-generator
+    command: >
+      sh -c "
+        apk add --no-cache curl &&
+        while true; do
+          echo '{\"log\":\"INFO ['$$(date '+%Y-%m-%d %H:%M:%S')'] otel-firelens-service: OpenTelemetry FireLens test log from HTTP input\",\"trace_id\":\"otel'$$(date +%s)'abcdef\",\"span_id\":\"otel'$$(date +%s)'def\"}' |
+          curl -X POST -H 'Content-Type: application/json' -d @- http://fluent-bit-otel-firelens:9881/otel-test || true;
+          sleep 30;
+        done
+      "
+    depends_on:
+      - fluent-bit-otel-firelens
+    restart: unless-stopped

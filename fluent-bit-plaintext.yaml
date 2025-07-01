@@ -15,17 +15,22 @@ pipeline:
       buffer_chunk_size: 1M
       buffer_max_size: 6M
     - name: dummy
-      dummy: 'INFO [2024-01-01 12:00:00] plaintext-service: Sample plaintext log message'
+      dummy: '{"log": "INFO [2024-01-01 12:00:00] plaintext-service: Sample plaintext log message"}'
       tag: plaintext.sample
 
   filters:
     - name: modify
       match: "*"
-      add: service plaintext-service
-      add: level info
+      add: service.name plaintext-service
+      add: severity info
+      add: environment production
+      add: version 1.0.0
+      add: team backend
+      add: region us-east-1
+      add: meta.signal.type log
     - name: modify
       match: "*"
-      rename: log message
+      rename: log body
 
   outputs:
     - name: stdout

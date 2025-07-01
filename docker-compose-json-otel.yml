@@ -1,0 +1,15 @@
+# OpenTelemetry-native JSON log configuration
+version: '3.8'
+
+services:
+  fluent-bit-otel-json:
+    image: fluent/fluent-bit:3.0
+    container_name: fluent-bit-otel-json
+    ports:
+      - "24226:24226"  # Different port to avoid conflicts
+      - "2022:2022"    # Different metrics port
+    volumes:
+      - ./fluent-bit-json-otel.yaml:/fluent-bit/etc/fluent-bit.yaml
+      - ./parsers.conf:/fluent-bit/etc/parsers.conf
+    command: ["/fluent-bit/bin/fluent-bit", "--config=/fluent-bit/etc/fluent-bit.yaml"]
+    restart: unless-stopped

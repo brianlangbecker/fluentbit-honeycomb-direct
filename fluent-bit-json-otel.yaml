@@ -1,0 +1,73 @@
+service:
+  flush: 5
+  daemon: off
+  log_level: info
+  parsers_file: parsers.conf
+  http_server: on
+  http_listen: 0.0.0.0
+  http_port: 2022
+
+pipeline:
+  inputs:
+    - name: forward
+      listen: 0.0.0.0
+      port: 24226
+      buffer_chunk_size: 1M
+      buffer_max_size: 6M
+    - name: dummy
+      dummy: '{"timestamp": "2024-01-01T12:00:00Z", "level": "info", "service": "otel-json-service", "message": "Sample OpenTelemetry JSON log entry", "request_id": "otel-12345", "user_id": 789}'
+      tag: otel.json.sample
+
+  filters:
+    # Parse JSON logs
+    - name: parser
+      match: "*"
+      key_name: log
+      parser: json
+      reserve_data: on
+    # Add OpenTelemetry standard resource attributes
+    - name: modify
+      match: "*"
+      add: resource.service.name otel-json-service
+      add: resource.service.version 2.0.0
+      add: resource.service.namespace production
+      add: resource.deployment.environment production
+      add: resource.cloud.region us-east-1
+      add: resource.k8s.cluster.name local-cluster
+      add: instrumentation_scope.name fluent-bit
+      add: instrumentation_scope.version 3.0.0
+      add: severity_text INFO
+      add: severity_number 9
+    # OpenTelemetry field standardization
+    - name: modify
+      match: "*"
+      rename: message body
+      rename: level severity_text_original
+    # Add trace context (simulated)
+    - name: modify
+      match: "*"
+      add: trace_id abcdef1234567890abcdef1234567890
+      add: span_id abcdef1234567890
+      add: trace_flags 01
+
+  outputs:
+    - name: stdout
+      match: "*"
+      format: json_lines
+    # OpenTelemetry HTTP exporter to Honeycomb
+    - name: opentelemetry
+      match: "*"
+      host: api.honeycomb.io
+      port: 443
+      logs_uri: /v1/logs
+      tls: on
+      tls.verify: on
+      header: X-Honeycomb-Team <Your API Key>
+      header: X-Honeycomb-Dataset fluent-bit-otel-json
+      logs_body_key: body
+      logs_severity_text_message_key: severity_text
+      logs_severity_number_message_key: severity_number
+      logs_trace_id_message_key: trace_id
+      logs_span_id_message_key: span_id
+      logs_trace_flags_metadata_key: trace_flags
+      log_response_payload: on
